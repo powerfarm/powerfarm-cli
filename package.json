@@ -1,0 +1,21 @@
+{
+  "name": "powerfarm",
+  "version": "0.1.0",
+  "description": "The Powerfarm command line interface.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "powerfarm": "./bin/powerfarm.mjs",
+    "pf": "./bin/powerfarm.mjs"
+  },
+  "files": ["bin", "src", "README.md"],
+  "engines": { "node": ">=20.11" },
+  "scripts": {
+    "test": "node --test ../../tests/cli-*.test.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/powerfarm/powerfarm-registry.git",
+    "directory": "packages/cli"
+  }
+}

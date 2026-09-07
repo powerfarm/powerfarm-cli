@@ -6,25 +6,19 @@ Zero runtime dependencies. Node 20.11 or newer.
 
 ## Install
 
-Not published to npm yet, so from a clone of this repo:
+```sh
+npx powerfarm@latest login
+```
+
+Or from a clone:
 
 ```sh
-npm run cli:link          # puts `powerfarm` and `pf` on your PATH
+npm link          # puts `powerfarm` and `pf` on your PATH
 powerfarm login
 ```
 
-`npm run cli:link` is `npm link --workspace powerfarm`. To undo it later,
-`npm unlink -g powerfarm`.
-
-Without linking, run it straight out of the repo — no install, no PATH change:
-
-```sh
-npm run cli -- login
-npm run cli -- status
-node packages/cli/bin/powerfarm.mjs doctor
-```
-
-Once it is published, the usual `npx powerfarm@latest login` will work.
+To undo the link later, `npm unlink -g powerfarm`. Without linking, run it
+straight out of the repo: `node bin/powerfarm.mjs doctor`.
 
 ## Getting started
 
@@ -149,3 +143,20 @@ admin API and therefore goes through the Registry, gated on
 | `2` | Unknown command or bad usage |
 | `3` | Network unreachable |
 | `4` | Not authenticated, or refused for lack of a grant |
+
+## Development
+
+```sh
+npm test          # no install needed: there are no dependencies
+```
+
+The suite includes an end-to-end login driven against a real HTTP OAuth
+issuer that enforces PKCE, rejects a client secret, verifies the S256
+challenge and the redirect URI, and refuses a replayed code. The CLI runs as
+a separate process, so the handshake it performs there is the one it performs
+against Powerfarm.
+
+The server-side rule this CLI depends on — that a public client may register
+literal `127.0.0.1` redirects — is enforced and tested in
+[powerfarm-registry](https://github.com/powerfarm/powerfarm-registry), and
+checked here at runtime by `powerfarm doctor`.

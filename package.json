@@ -1,7 +1,7 @@
 {
   "name": "powerfarm",
   "version": "0.1.0",
-  "description": "The Powerfarm command line interface.",
+  "description": "The Powerfarm command line.",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -11,11 +11,14 @@
   "files": ["bin", "src", "README.md"],
   "engines": { "node": ">=20.11" },
   "scripts": {
-    "test": "node --test ../../tests/cli-*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "start": "node bin/powerfarm.mjs"
   },
+  "keywords": ["powerfarm", "cli", "oauth", "gadgets"],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/powerfarm/powerfarm-registry.git",
-    "directory": "packages/cli"
-  }
+    "url": "git+https://github.com/powerfarm/powerfarm-cli.git"
+  },
+  "bugs": { "url": "https://github.com/powerfarm/powerfarm-cli/issues" },
+  "homepage": "https://github.com/powerfarm/powerfarm-cli#readme"
 }

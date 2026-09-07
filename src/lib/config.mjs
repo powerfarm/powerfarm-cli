@@ -13,10 +13,12 @@ export const DEFAULTS = {
   registryUrl: "https://registry.powerfarm.app",
   identityUrl: "https://id.powerfarm.app",
   publishableKey: "sb_publishable_oC_uzaP33cbOVgu4BM_rLQ_1Sj2VfO_",
-  // Registered as a public client (token_endpoint_auth_method: none) with the
-  // loopback redirect URIs below. There is no client secret in this package,
-  // and there must never be one: PKCE is what protects the exchange.
-  clientId: process.env.POWERFARM_CLIENT_ID ?? "",
+  // Registered as a public client (token_endpoint_auth_method: none) carrying
+  // the loopback redirect URIs below. There is no client secret in this
+  // package, and there must never be one: PKCE is what protects the exchange.
+  // A public client id is not a credential — it is published in every
+  // authorization request — so shipping it here is correct.
+  clientId: "8a926787-1bbe-4ff4-a849-204b1f05d59c",
   scope: "openid email profile offline_access",
 };
 

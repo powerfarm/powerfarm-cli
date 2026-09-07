@@ -2,11 +2,29 @@
 
 The Powerfarm command line.
 
+Zero runtime dependencies. Node 20.11 or newer.
+
+## Install
+
+Not published to npm yet, so from a clone of this repo:
+
 ```sh
-npx powerfarm@latest login
+npm run cli:link          # puts `powerfarm` and `pf` on your PATH
+powerfarm login
 ```
 
-Zero runtime dependencies. Node 20.11 or newer.
+`npm run cli:link` is `npm link --workspace powerfarm`. To undo it later,
+`npm unlink -g powerfarm`.
+
+Without linking, run it straight out of the repo — no install, no PATH change:
+
+```sh
+npm run cli -- login
+npm run cli -- status
+node packages/cli/bin/powerfarm.mjs doctor
+```
+
+Once it is published, the usual `npx powerfarm@latest login` will work.
 
 ## Getting started
 

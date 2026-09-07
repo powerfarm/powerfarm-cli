@@ -14,8 +14,9 @@ ${style.bold("powerfarm doctor")} — find out why something is broken.
 USAGE
   powerfarm doctor [--json]
 
-Runs live checks against the issuer, the Registry and the Identity host, plus
-the local install. Exits non-zero if any check fails, so it can gate CI.
+Runs live checks against the issuer, the Registry, the Identity host, the
+local install, and the places the Registry admits. Exits non-zero if any
+check fails, so it can gate CI.
 `;
 
 const PASS = "pass";
@@ -216,6 +217,51 @@ export async function run(argv) {
             : "This host must answer or sign-in cannot complete.");
     } catch (error) {
       record(name, FAIL, error.message);
+    }
+  }
+
+  // 11. Places ------------------------------------------------------------
+  if (session) {
+    try {
+      const client = createClient({ endpoints, accessToken: session.accessToken });
+      const places = await client.rest("identities", {
+        select: "slug,name,metadata,contract_version",
+        kind: "eq.place",
+        order: "slug.asc",
+      }, "list places");
+      const expected = [
+        "pf.engine-park.512",
+        "pf.app-park.512",
+        "pf.engine-park.8gb",
+        "pf.app-park.8gb",
+      ];
+      const have = new Set((places ?? []).map((place) => place.slug));
+      const missing = expected.filter((slug) => !have.has(slug));
+      record("places registered",
+        missing.length === 0 ? PASS : (places ?? []).length ? WARN : FAIL,
+        missing.length
+          ? `missing ${missing.join(", ")}`
+          : `${places.length} parks admitted`,
+        missing.length ? "Register the four parks after the machines they sit on." : undefined);
+
+      const machines = await client.rest("identities", {
+        select: "slug,contract_version",
+        kind: "eq.machine",
+      }, "list machines");
+      const machineSlugs = new Set((machines ?? []).map((row) => row.slug));
+      record("machine 512",
+        machineSlugs.has("pf.lab-512") ? PASS : FAIL,
+        machineSlugs.has("pf.lab-512") ? "pf.lab-512 admitted" : "pf.lab-512 is not registered",
+        machineSlugs.has("pf.lab-512") ? undefined : "Register the 512 machine before its parks.");
+
+      const unbound = (places ?? []).filter((place) => !machineSlugs.has(place.metadata?.machine));
+      record("place machines",
+        unbound.length === 0 ? PASS : FAIL,
+        unbound.length
+          ? `unbound: ${unbound.map((place) => place.slug).join(", ")}`
+          : "every place names a registered machine");
+    } catch (error) {
+      record("places registered", SKIP, error.message);
     }
   }
 

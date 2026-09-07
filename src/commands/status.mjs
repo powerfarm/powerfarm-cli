@@ -3,7 +3,7 @@ import { parse } from "../lib/args.mjs";
 import { DEFAULTS } from "../lib/config.mjs";
 import { getCredential } from "../lib/credentials.mjs";
 import { userInfo } from "../lib/oauth.mjs";
-import { facts, json, mark, out, relativeTime, style } from "../lib/output.mjs";
+import { facts, json, mark, out, relativeTime, style, table } from "../lib/output.mjs";
 import { loadContext, resolveSession } from "../lib/session.mjs";
 
 export const help = `
@@ -13,9 +13,9 @@ USAGE
   powerfarm status [--json]
 
 Reports which profile is active, where the token came from, when it expires,
-which endpoints are in play and where each one was configured, and which
-grants your identity holds. Use ${style.cyan("powerfarm doctor")} when something
-here looks wrong and you need to know why.
+which endpoints are in play and where each one was configured, which grants
+your identity holds, and which places (parks) the Registry currently admits.
+Use ${style.cyan("powerfarm doctor")} when something here looks wrong.
 `;
 
 /** Where a value came from, so a surprising endpoint is traceable. */
@@ -35,15 +35,21 @@ export async function run(argv) {
   let session = null;
   let identity = null;
   let registry = null;
+  let places = [];
   let failure = null;
 
   try {
     session = await resolveSession(context);
     if (session) {
       const client = createClient({ endpoints, accessToken: session.accessToken });
-      [identity, registry] = await Promise.all([
+      [identity, registry, places] = await Promise.all([
         userInfo({ issuerUrl: endpoints.issuerUrl, accessToken: session.accessToken }),
         whoAmI(client).catch(() => null),
+        client.rest("identities", {
+          select: "slug,name,metadata,contract_version",
+          kind: "eq.place",
+          order: "slug.asc",
+        }, "list places").catch(() => []),
       ]);
     }
   } catch (error) {
@@ -62,6 +68,14 @@ export async function run(argv) {
       identity: registry?.identity ?? null,
       grants: registry?.grants ?? [],
       workspaces: registry?.workspaces ?? [],
+      places: (places ?? []).map((place) => ({
+        slug: place.slug,
+        name: place.name,
+        machine: place.metadata?.machine ?? null,
+        path: place.metadata?.path ?? null,
+        park_type: place.metadata?.park_type ?? null,
+        contract_version: place.contract_version ?? null,
+      })),
       endpoints,
       error: failure,
     });
@@ -119,6 +133,26 @@ export async function run(argv) {
       ? `${endpoints.clientId} ${style.grey(origin("clientId", "POWERFARM_CLIENT_ID", profileConfig))}`
       : style.red("not configured")],
   ]);
+
+  out();
+  out(style.grey("PLACES"));
+  if (!session) {
+    out(style.grey("  Sign in to see parks."));
+  } else if (!places?.length) {
+    out(style.grey("  None registered."));
+  } else {
+    table(places.map((place) => ({
+      slug: place.slug,
+      type: place.metadata?.park_type ?? "—",
+      machine: place.metadata?.machine ?? "—",
+      path: place.metadata?.path ?? "—",
+    })), [
+      ["slug", "SLUG"],
+      ["type", "PARK"],
+      ["machine", "MACHINE"],
+      ["path", "PATH"],
+    ]);
+  }
 
   if (!endpoints.clientId && !DEFAULTS.clientId) {
     out();

@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor is what package.json declares; the others are what people
+        # will actually be running.
+        node: ["20.11", "22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # No install step: the CLI has no dependencies, and that is a property
+      # worth keeping. A lockfile appearing here means something crept in.
+      - name: Assert no dependencies
+        run: |
+          node -e '
+            const pkg = require("./package.json");
+            for (const field of ["dependencies", "peerDependencies"]) {
+              const found = Object.keys(pkg[field] ?? {});
+              if (found.length) {
+                console.error(`${field} must stay empty, found: ${found.join(", ")}`);
+                process.exit(1);
+              }
+            }
+          '
+      - run: npm test

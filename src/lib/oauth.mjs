@@ -113,7 +113,19 @@ export async function userInfo({ issuerUrl, accessToken, fetchImpl = fetch }) {
   return response.json();
 }
 
+/**
+ * Treat an unknown expiry as expired.
+ *
+ * `normalizeTokens` leaves `expiresAt` null when the issuer omits
+ * `expires_in`. Reading that as "never expires" pinned the session to a token
+ * that could only be discovered as dead by a 401 on the next call. Refreshing
+ * instead costs one request; when there is no refresh token to use,
+ * `resolveSession` falls through to asking for a fresh sign-in, which is the
+ * honest outcome.
+ */
 export function isExpired(credential, now = Date.now()) {
-  if (!credential?.expiresAt) return false;
-  return new Date(credential.expiresAt).getTime() <= now;
+  if (!credential?.expiresAt) return true;
+  const expiresAt = new Date(credential.expiresAt).getTime();
+  if (Number.isNaN(expiresAt)) return true;
+  return expiresAt <= now;
 }

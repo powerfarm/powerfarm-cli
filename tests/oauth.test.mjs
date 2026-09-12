@@ -106,5 +106,14 @@ test("token expiry is stored a minute early so requests never race it", () => {
 
   assert.equal(isExpired({ expiresAt: new Date(Date.now() + 1000).toISOString() }), false);
   assert.equal(isExpired({ expiresAt: new Date(Date.now() - 1000).toISOString() }), true);
-  assert.equal(isExpired({ expiresAt: null }), false);
+});
+
+test("an unknown expiry counts as expired rather than as eternal", () => {
+  // normalizeTokens leaves expiresAt null when the issuer omits expires_in.
+  // Reading that as "still valid" pinned the session to a token that could only
+  // be found dead by a 401 on the next call.
+  assert.equal(isExpired({ expiresAt: null }), true);
+  assert.equal(isExpired({}), true);
+  assert.equal(isExpired(null), true);
+  assert.equal(isExpired({ expiresAt: "not a date" }), true);
 });

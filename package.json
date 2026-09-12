@@ -1,6 +1,6 @@
 {
   "name": "powerfarm",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The Powerfarm command line.",
   "license": "MIT",
   "type": "module",

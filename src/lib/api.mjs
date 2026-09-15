@@ -16,23 +16,56 @@ export function createClient({ endpoints, accessToken }) {
     "Content-Type": "application/json",
   });
 
-  async function unwrap(response, what) {
-    if (response.status === 401 || response.status === 403) {
-      throw new CliError(`Not authorized to ${what}.`, {
+  /**
+   * Turn a response into data, or into an error that says what actually
+   * happened. Two rules matter here:
+   *
+   *  - 401 and 403 are different failures. A rejected token is fixed by
+   *    signing in again; a refused row is fixed by grants. Reporting both as
+   *    "not authorized … check your grants" sends you down the wrong path.
+   *  - A body that is not JSON is never data. Returning the text verbatim let
+   *    an HTML sign-in page reach callers as a successful payload, where
+   *    destructuring it yielded `undefined` and the CLI reported an empty
+   *    result instead of a failure.
+   */
+  async function unwrap(response, what, { expectJson = true } = {}) {
+    const text = await response.text();
+    let payload = null;
+    let isJson = true;
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = text;
+        isJson = false;
+      }
+    }
+
+    const detail = isJson
+      ? payload?.message || payload?.error_description || payload?.error || payload?.hint || payload?.msg || null
+      : null;
+
+    if (response.status === 401) {
+      throw new CliError(
+        `Not authorized to ${what}: the access token was rejected${detail ? ` (${detail})` : ""}.`,
+        { hint: "The session may have expired. Run `powerfarm login` to sign in again.", code: 4 },
+      );
+    }
+    if (response.status === 403) {
+      throw new CliError(`Refused to ${what}${detail ? `: ${detail}` : ""}.`, {
         hint: "Your grants may not cover this action. Check `powerfarm status`.",
         code: 4,
       });
     }
-    const text = await response.text();
-    let payload;
-    try {
-      payload = text ? JSON.parse(text) : null;
-    } catch {
-      payload = text;
-    }
     if (!response.ok) {
-      const detail = payload?.message || payload?.error || payload?.hint || `HTTP ${response.status}`;
-      throw new CliError(`Could not ${what}: ${detail}`);
+      throw new CliError(`Could not ${what}: ${detail ?? `HTTP ${response.status}`}`);
+    }
+    if (expectJson && !isJson) {
+      const kind = /^\s*<(?:!doctype|html)/i.test(text) ? "an HTML page" : "a non-JSON body";
+      throw new CliError(`Could not ${what}: the server returned ${kind}, not JSON.`, {
+        hint: "The endpoint may be behind a browser session guard that ignores bearer tokens.",
+        code: 4,
+      });
     }
     return payload;
   }
@@ -91,9 +124,16 @@ export function createClient({ endpoints, accessToken }) {
       return unwrap(response, what);
     },
 
-    /** Call the Registry's own API with the same bearer token. */
+    /**
+     * Call the Registry's own API with the same bearer token.
+     *
+     * An API endpoint has no reason to redirect. When it does, it is a browser
+     * session guard bouncing an unauthenticated request to a sign-in page --
+     * which answers 200 with HTML and would otherwise be mistaken for data.
+     */
     async registry(path, { method = "GET", body } = {}, what = `reach the registry`) {
-      const response = await fetch(`${endpoints.registryUrl}${path}`, {
+      const url = `${endpoints.registryUrl}${path}`;
+      const response = await fetch(url, {
         method,
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -101,6 +141,15 @@ export function createClient({ endpoints, accessToken }) {
         },
         body: body ? JSON.stringify(body) : undefined,
       });
+      if (response.redirected) {
+        throw new CliError(
+          `Could not ${what}: the registry redirected to ${response.url} instead of answering.`,
+          {
+            hint: "The registry did not accept the bearer token and sent the request to a browser sign-in page.",
+            code: 4,
+          },
+        );
+      }
       return unwrap(response, what);
     },
   };

@@ -7,6 +7,7 @@ import { VERSION } from "./lib/version.mjs";
  * for the OAuth stack, and a broken command cannot stop the rest from running.
  */
 export const COMMANDS = {
+  service: { summary: "Publish service templates and manage Antenna contracts", load: () => import("./commands/service.mjs") },
   login: { summary: "Authenticate this machine", load: () => import("./commands/login.mjs") },
   logout: { summary: "Discard stored credentials", load: () => import("./commands/logout.mjs") },
   whoami: { summary: "Show the signed-in identity", load: () => import("./commands/whoami.mjs") },
